@@ -5,6 +5,7 @@ import { useSettings } from '../hooks/useSettings';
 import { formatPinyin, headwordParts } from '../lib/format';
 import AudioButton from '../components/AudioButton';
 import Badge from '../components/Badge';
+import Button from '../components/Button';
 import CopyText from '../components/CopyText';
 import SenseList from '../components/SenseList';
 import StarButton from '../components/StarButton';
@@ -104,6 +105,9 @@ export default function EntryPage() {
           </p>
           <div className="entry-actions">
             <StarButton entry={entry} labeled />
+            <Button variant="outline" to={`/ai?entry=${encodeURIComponent(entry.id)}`}>
+              Ask AI
+            </Button>
           </div>
         </header>
 

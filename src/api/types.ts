@@ -83,6 +83,98 @@ export interface HandwritingSample {
   height: number;
 }
 
+/* ---- AI assistant (chat) ----
+ *
+ * The assistant answers term/grammar questions with STRUCTURED output: an array
+ * of typed blocks rather than free markdown. Groundedness is enforced by design:
+ * the request carries a numbered list of grounding sources (dictionary entries,
+ * the user's glossary), blocks cite 1-based indexes into that list, and the
+ * adapter — never the model — resolves indexes into AiSource records. A model
+ * cannot fabricate a citation to a source that wasn't provided.
+ */
+
+export interface AiSource {
+  kind: 'entry' | 'glossary';
+  entryId: string;
+  /** Display label, e.g. "银行 yínháng — bank". */
+  label: string;
+  /** The 1-based grounding-list number this source was cited under — matches sourceIndexes. */
+  index: number;
+}
+
+export interface AiTextBlock {
+  kind: 'text';
+  /** Plain prose (no markdown). */
+  text: string;
+  /** 1-based indexes into the request's grounding sources. Empty = model knowledge. */
+  sourceIndexes: number[];
+}
+
+export interface AiExampleBlock {
+  kind: 'example';
+  zh: string;
+  /** Display-ready pinyin in the user's preferred style. */
+  pinyin: string;
+  en: string;
+  /** What the example demonstrates, when useful. */
+  note: string | null;
+  sourceIndexes: number[];
+}
+
+export interface AiTermBlock {
+  kind: 'term';
+  simplified: string;
+  traditional: string | null;
+  pinyin: string;
+  gloss: string;
+  /** Set only when the term is one of the grounding sources' entries. */
+  entryId: string | null;
+}
+
+export type AiBlock = AiTextBlock | AiExampleBlock | AiTermBlock;
+
+export interface AiUserMessage {
+  role: 'user';
+  text: string;
+}
+
+export interface AiAssistantMessage {
+  role: 'assistant';
+  blocks: AiBlock[];
+  /** Resolved by the adapter from cited sourceIndexes — never model-authored. */
+  sources: AiSource[];
+}
+
+export type AiMessage = AiUserMessage | AiAssistantMessage;
+
+export interface AiGroundingSource {
+  kind: 'entry' | 'glossary';
+  entry: DictionaryEntry;
+}
+
+export interface AiGrounding {
+  /** Numbered list; blocks' sourceIndexes are 1-based positions in this array. */
+  sources: AiGroundingSource[];
+  /** Entry the chat was launched from, if any (also present in sources). */
+  focusEntryId?: string;
+}
+
+export interface AiPreferences {
+  characterPriority: 'simplified' | 'traditional' | 'both';
+  pinyinStyle: 'marks' | 'numbers';
+}
+
+export interface AiChatRequest {
+  history: AiMessage[];
+  message: string;
+  grounding: AiGrounding;
+  preferences: AiPreferences;
+}
+
+export interface AiChatResponse {
+  message: AiAssistantMessage;
+}
+
 export type SearchMode = 'hanzi' | 'pinyin' | 'english';
 
 export interface SearchResult {

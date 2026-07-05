@@ -1,5 +1,7 @@
 import type { DictionaryApi } from './client';
 import type {
+  AiBlock,
+  AiChatRequest,
   CharacterComponent,
   CharacterDetail,
   CharacterInfo,
@@ -10,7 +12,9 @@ import type {
 } from './types';
 import { ENTRIES } from './data';
 import { CHARACTERS, COMPONENT_STROKES } from './characterData';
-import { hasCJK, looksLatin, normalizePinyin } from '../lib/pinyin';
+import { hasCJK, looksLatin, normalizePinyin, toToneMarks, toToneNumbers } from '../lib/pinyin';
+import { buildAiApiPayload } from '../ai/prompts';
+import { assembleAssistantMessage } from '../ai/validate';
 
 /**
  * Mock adapter. Simulates network latency, persists glossary and session to
@@ -148,6 +152,94 @@ function wordsContaining(
   return hits.sort((a, b) => (a.entry.frequencyRank ?? Infinity) - (b.entry.frequencyRank ?? Infinity));
 }
 
+/**
+ * Deterministic canned reply for the mock `chat()`. Real adapter: send
+ * buildAiApiPayload(request) to the chat-completions endpoint and run the
+ * response through parseAiResponse(). Here we hand-assemble the same typed
+ * blocks so the UI is exercised end to end without a model.
+ */
+function pinyinFor(numbered: string, style: AiChatRequest['preferences']['pinyinStyle']): string {
+  return style === 'marks' ? toToneMarks(numbered) : toToneNumbers(numbered);
+}
+
+function buildCannedBlocks(request: AiChatRequest): AiBlock[] {
+  const primary = request.grounding.sources[0];
+
+  if (!primary) {
+    return [
+      {
+        kind: 'text',
+        text: "I don't have a dictionary entry to ground this one — here's a general answer, but double-check it against a grammar reference before you rely on it.",
+        sourceIndexes: [],
+      },
+      {
+        kind: 'example',
+        zh: '这句话应该怎么翻译比较合适？',
+        pinyin: pinyinFor(
+          'zhe4 ju4 hua4 ying1 gai1 zen3 me5 fan1 yi4 bi3 jiao4 he2 shi4',
+          request.preferences.pinyinStyle,
+        ),
+        en: 'How would this sentence best be translated?',
+        note: 'A generic illustrative example — not drawn from the dictionary.',
+        sourceIndexes: [],
+      },
+    ];
+  }
+
+  const entry = primary.entry;
+  const sense = entry.senses[0];
+  const example = entry.senses.flatMap((s) => s.examples ?? [])[0];
+
+  const blocks: AiBlock[] = [
+    {
+      kind: 'term',
+      simplified: entry.simplified,
+      traditional: entry.traditional !== entry.simplified ? entry.traditional : null,
+      pinyin: pinyinFor(entry.pinyin, request.preferences.pinyinStyle),
+      gloss: sense?.glosses[0] ?? '',
+      entryId: entry.id,
+    },
+    {
+      kind: 'text',
+      text: `${entry.simplified} most directly means "${sense?.glosses.join('; ') ?? ''}"${
+        sense?.register ? `, with a ${sense.register} register` : ''
+      }${sense?.domain ? ` in ${sense.domain} contexts` : ''}. That's the sense to lead with unless the surrounding text points elsewhere.`,
+      sourceIndexes: [1],
+    },
+  ];
+
+  if (example) {
+    blocks.push({
+      kind: 'example',
+      zh: example.zh,
+      pinyin: example.pinyin,
+      en: example.en,
+      note: null,
+      sourceIndexes: [1],
+    });
+  } else {
+    blocks.push({
+      kind: 'example',
+      zh: `我们需要再确认一下${entry.simplified}的用法。`,
+      pinyin: pinyinFor(
+        `wo3 men5 xu1 yao4 zai4 que4 ren4 yi2 xia4 ${entry.pinyin} de5 yong4 fa3`,
+        request.preferences.pinyinStyle,
+      ),
+      en: `We need to double-check the usage of ${entry.simplified} once more.`,
+      note: 'Illustrative — not one of the dictionary entry\'s stored examples.',
+      sourceIndexes: [],
+    });
+  }
+
+  blocks.push({
+    kind: 'text',
+    text: 'Beyond the dictionary sense, weigh how formal the surrounding document is and whether a near-synonym might carry the connotation you actually want — that judgment call is on you, not the dictionary.',
+    sourceIndexes: [],
+  });
+
+  return blocks;
+}
+
 export const mockApi: DictionaryApi = {
   async search(query) {
     await delay();
@@ -223,6 +315,18 @@ export const mockApi: DictionaryApi = {
       words: wordsContaining(info.char, info.traditional),
     };
     return detail;
+  },
+
+  async chat(request) {
+    // A beat slower than the data methods — it should read as "thinking".
+    await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 300));
+
+    // Exercises the real prompt-building path end to end (messages + schema)
+    // even though the mock never sends it anywhere.
+    buildAiApiPayload(request);
+
+    const blocks = buildCannedBlocks(request);
+    return { message: assembleAssistantMessage(blocks, request.grounding) };
   },
 
   async listGlossary() {

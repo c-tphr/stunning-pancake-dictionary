@@ -224,6 +224,10 @@
 }
 
 .entry-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
   margin-top: var(--space-xs);
 }
 
@@ -475,6 +479,88 @@
   .character-glyph.is-large {
     font-size: 104px;
   }
+}
+
+/* ---- AI assistant ---- */
+
+.ai-chat {
+  max-width: 820px;
+}
+
+.ai-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.ai-user-message {
+  align-self: flex-end;
+  background: var(--color-surface-strong);
+  color: var(--color-ink);
+  border-radius: var(--rounded-lg);
+  padding: var(--space-sm) var(--space-base);
+  max-width: 75%;
+  white-space: pre-wrap;
+}
+
+.ai-thinking {
+  margin-top: var(--space-xs);
+}
+
+.ai-error-line {
+  color: var(--color-error);
+  margin-top: var(--space-xs);
+}
+
+.ai-composer {
+  margin-top: var(--space-lg);
+}
+
+.ai-footer-caption {
+  color: var(--color-muted);
+  margin-top: var(--space-sm);
+}
+
+.ai-empty-state {
+  padding: var(--space-xl) 0;
+}
+
+.ai-empty-lede {
+  color: var(--color-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.ai-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.ai-focus-caption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-muted);
+  margin-top: var(--space-lg);
+}
+
+.ai-focus-caption .hanzi {
+  color: var(--color-body-strong);
+}
+
+.ai-focus-clear {
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.ai-focus-clear:hover {
+  color: var(--color-ink);
+}
+
+.ai-gate-actions {
+  margin-top: var(--space-lg);
 }
 
 /* ---- Glossary ---- */

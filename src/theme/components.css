@@ -114,6 +114,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-xs);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .wordmark-zh {
@@ -180,11 +182,11 @@
 
 @media (max-width: 1024px) {
   .top-nav-inner {
-    gap: var(--space-lg);
+    gap: var(--space-base);
   }
 
   .top-nav-links {
-    gap: var(--space-base);
+    gap: var(--space-xs);
   }
 }
 
@@ -245,7 +247,7 @@
 
 @media (max-width: 1024px) {
   .search-box-compact .search-input {
-    width: 160px;
+    width: 120px;
   }
 }
 
@@ -651,6 +653,181 @@
 .handwriting-stroke-count {
   color: var(--color-muted);
   margin-left: auto;
+}
+
+/* ---- AI term chip ---- */
+
+.ai-term-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--rounded-lg);
+  padding: var(--space-xs) var(--space-base);
+  background: var(--color-canvas-soft);
+}
+
+.ai-term-chip-linked:hover .ai-term-hanzi {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ai-term-hanzi {
+  font-size: 20px;
+  color: var(--color-ink);
+}
+
+.ai-term-trad,
+.ai-term-pinyin {
+  color: var(--color-muted);
+}
+
+.ai-term-gloss {
+  color: var(--color-body);
+}
+
+/* ---- AI assistant message ---- */
+
+.ai-message {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--rounded-xl);
+  padding: var(--space-lg);
+}
+
+.ai-message-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+}
+
+.ai-block-text {
+  color: var(--color-body-strong);
+}
+
+/* Reuse the entry-page example card, but drop its sense-number indent. */
+.ai-block-example {
+  margin: 0;
+}
+
+.ai-example-note {
+  color: var(--color-muted);
+  margin-top: var(--space-xxs);
+}
+
+/* ---- Citation markers (superscript, text-level, never colored) ---- */
+
+.ai-citations {
+  margin-left: 3px;
+  white-space: nowrap;
+}
+
+.ai-citation-marker {
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: super;
+  color: var(--color-muted);
+  padding: 0 1px;
+}
+
+.ai-citation-marker:hover {
+  color: var(--color-ink);
+}
+
+/* ---- Sources footer (the groundedness signal) ---- */
+
+.ai-message-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-base);
+  padding-top: var(--space-base);
+  border-top: 1px solid var(--color-hairline-soft);
+}
+
+.ai-sources-toggle {
+  align-self: flex-start;
+  color: var(--color-muted);
+}
+
+.ai-sources-toggle:hover {
+  color: var(--color-ink);
+}
+
+.ai-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-source-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xxs) var(--space-xs);
+  border-radius: var(--rounded-sm);
+  transition: background 200ms ease;
+}
+
+.ai-source-row:hover,
+.ai-source-row.is-highlighted {
+  background: var(--color-surface-strong);
+}
+
+.ai-source-number {
+  color: var(--color-muted);
+}
+
+.ai-source-label {
+  color: var(--color-body);
+}
+
+.ai-model-knowledge-note {
+  color: var(--color-muted);
+}
+
+/* ---- AI composer ---- */
+
+.ai-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.ai-composer-input {
+  flex: 1;
+  background: var(--color-surface-card);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--rounded-md);
+  padding: var(--space-sm) var(--space-base);
+  min-height: 44px;
+  max-height: 140px;
+  resize: none;
+  overflow-y: auto;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0.16px;
+}
+
+.ai-composer-input::placeholder {
+  color: var(--color-muted-soft);
+}
+
+.ai-composer-input:focus {
+  outline: none;
+  border: 2px solid var(--color-ink);
+  padding: 11px 15px;
+}
+
+.ai-composer-input:disabled {
+  opacity: 0.6;
+}
+
+.ai-composer .btn {
+  flex-shrink: 0;
+  height: 44px;
 }
 
 /* ---- Footer ---- */

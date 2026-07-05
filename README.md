@@ -66,3 +66,14 @@ Other scripts: `npm run build` (typecheck + production bundle to `dist/`), `npm 
   service is connected — the UI carries a small caption saying so. Each character has a focus
   view (`/characters/:char`) with its readings, radical/component breakdown, and the dictionary
   words that use it.
+- **AI assistant** (`/ai`, requires sign-in): a chat interface for term and grammar questions,
+  backed by the OpenAI API. The frontend never handles an API key — the real adapter attaches it
+  server-side to the user's SSO certificate, so `chat()` is just another `DictionaryApi` promise.
+  Groundedness is structural, not a prompt suggestion: replies are typed blocks (`src/api/types.ts`
+  — `AiBlock`) that cite 1-based indexes into a request-supplied source list
+  (`src/ai/grounding.ts` assembles it from dictionary/glossary matches before every send), and
+  `src/ai/validate.ts` strips any citation or `entryId` that doesn't resolve to a real source
+  before the UI ever sees it. The system prompt and OpenAI structured-outputs schema
+  (`src/ai/prompts.ts`, `src/ai/schema.ts`) are written to be sent as-is once the real adapter
+  lands; the mock (`src/api/mock.ts`) calls the same prompt builder on every turn so that path
+  stays exercised, then returns deterministic canned blocks instead of calling a model.

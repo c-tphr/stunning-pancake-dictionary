@@ -1,4 +1,6 @@
 import type {
+  AiChatRequest,
+  AiChatResponse,
   CharacterComponent,
   CharacterDetail,
   CharacterInfo,
@@ -37,4 +39,11 @@ export interface DictionaryApi {
   recognizeCharacter(sample: HandwritingSample): Promise<CharacterInfo[]>;
   /** Full character record; accepts simplified or traditional form. Null if unknown. */
   getCharacter(char: string): Promise<CharacterDetail | null>;
+
+  /**
+   * A turn with the AI assistant. Requires an authenticated session — the real
+   * adapter attaches the OpenAI key server-side to the user's SSO certificate,
+   * so the frontend never handles a key and this is just another promise.
+   */
+  chat(request: AiChatRequest): Promise<AiChatResponse>;
 }
