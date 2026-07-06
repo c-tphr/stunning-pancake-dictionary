@@ -7,14 +7,27 @@ import type {
   CharacterInfo,
   DictionaryEntry,
   PronunciationClip,
+  RestructuredSegmentDraft,
   SearchMode,
+  SegmentStatus,
   Session,
+  WorkspaceProject,
+  WorkspaceProjectSummary,
 } from './types';
 import { ENTRIES } from './data';
 import { CHARACTERS, COMPONENT_STROKES } from './characterData';
+import {
+  MIXED_DOC_ID,
+  MIXED_DOC_TEXT,
+  SOURCE_ONLY_DOC_ID,
+  SOURCE_ONLY_DOC_TEXT,
+} from './workspaceData';
 import { hasCJK, looksLatin, normalizePinyin, toToneMarks, toToneNumbers } from '../lib/pinyin';
+import { classifyBlock, splitSentences } from '../lib/segmentation';
 import { buildAiApiPayload } from '../ai/prompts';
 import { assembleAssistantMessage } from '../ai/validate';
+import { buildRestructurePayload, buildTranslatePayload } from '../ai/translatePrompt';
+import { buildTermExplainPayload } from '../ai/termExplainPrompt';
 
 /**
  * Mock adapter. Simulates network latency, persists glossary and session to
@@ -23,8 +36,25 @@ import { assembleAssistantMessage } from '../ai/validate';
 
 const GLOSSARY_KEY = 'cidian.glossary.v1';
 const SESSION_KEY = 'cidian.session.v1';
+const WORKSPACE_KEY = 'cidian.workspace.projects.v1';
 
 const MOCK_USER = { name: 'Morgan Wells', email: 'morgan.wells@example.com' };
+
+function readSession(): Session {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Session) : { user: null };
+  } catch {
+    return { user: null };
+  }
+}
+
+/** Workspace calls that touch the LLM require a session, like the real backend will. */
+function requireSession(): void {
+  if (!readSession().user) {
+    throw new Error('Not authenticated');
+  }
+}
 
 function delay(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 150 + Math.random() * 150));
@@ -240,6 +270,129 @@ function buildCannedBlocks(request: AiChatRequest): AiBlock[] {
   return blocks;
 }
 
+/** Best-effort per-character romanization for phrases with no termbase entry. */
+function romanizePhrase(phrase: string): string {
+  return [...phrase]
+    .map((ch) => {
+      const info = CHARACTERS.find((c) => c.char === ch || c.traditional === ch);
+      return info ? toToneMarks(info.readings[0].pinyin) : ch;
+    })
+    .join('');
+}
+
+function normalizeSegmentStatus(status: SegmentStatus): SegmentStatus {
+  // 'translating' is a transient in-flight state — never persisted.
+  return status === 'translating' ? 'untranslated' : status;
+}
+
+function normalizeProject(project: WorkspaceProject): WorkspaceProject {
+  return {
+    ...project,
+    paragraphs: project.paragraphs.map((paragraph) => ({
+      ...paragraph,
+      segments: paragraph.segments.map((segment) => ({
+        ...segment,
+        status: normalizeSegmentStatus(segment.status),
+      })),
+    })),
+  };
+}
+
+function summarizeProject(project: WorkspaceProject): WorkspaceProjectSummary {
+  const counts: Record<SegmentStatus, number> = {
+    untranslated: 0,
+    translating: 0,
+    draft: 0,
+    good: 0,
+    'needs-revision': 0,
+  };
+  for (const paragraph of project.paragraphs) {
+    for (const segment of paragraph.segments) {
+      counts[normalizeSegmentStatus(segment.status)]++;
+    }
+  }
+  return { id: project.id, name: project.name, updatedAt: project.updatedAt, counts };
+}
+
+function readWorkspaceProjects(): Record<string, WorkspaceProject> {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, WorkspaceProject>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeWorkspaceProjects(projects: Record<string, WorkspaceProject>): void {
+  localStorage.setItem(WORKSPACE_KEY, JSON.stringify(projects));
+}
+
+/**
+ * Rule-based restructuring (no LLM in the mock): split on every newline,
+ * classify each block as source (majority CJK) or target (majority Latin),
+ * and pair alternating source→target blocks when a translation is present.
+ * See src/ai/translatePrompt.ts for the real LLM-based restructure prompt
+ * this stands in for.
+ */
+function restructureBlocks(text: string): { mode: 'source-only' | 'mixed'; paragraphs: { segments: RestructuredSegmentDraft[] }[] } {
+  const blocks = text
+    .split(/\n+/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((b) => ({ text: b, kind: classifyBlock(b) }));
+
+  const hasTargetBlock = blocks.some((b) => b.kind === 'target');
+  const alternates = blocks.some(
+    (b, i) => b.kind === 'source' && blocks[i + 1]?.kind === 'target',
+  );
+  const mode: 'source-only' | 'mixed' = hasTargetBlock && alternates ? 'mixed' : 'source-only';
+
+  if (mode === 'source-only') {
+    return {
+      mode,
+      paragraphs: blocks.map((b) => ({
+        segments: splitSentences(b.text).map((source) => ({ source, target: '' })),
+      })),
+    };
+  }
+
+  const paragraphs: { segments: RestructuredSegmentDraft[] }[] = [];
+  let i = 0;
+  while (i < blocks.length) {
+    const block = blocks[i];
+    const next = blocks[i + 1];
+    if (block.kind === 'source' && next?.kind === 'target') {
+      const sourceSentences = splitSentences(block.text);
+      const targetSentences = splitSentences(next.text);
+      const segments: RestructuredSegmentDraft[] = sourceSentences.map((source, idx) => ({
+        source,
+        target: idx < targetSentences.length ? targetSentences[idx] : '',
+      }));
+      if (targetSentences.length > sourceSentences.length && segments.length > 0) {
+        const extra = targetSentences.slice(sourceSentences.length).join(' ');
+        const last = segments[segments.length - 1];
+        last.target = last.target ? `${last.target} ${extra}` : extra;
+      }
+      paragraphs.push({ segments });
+      i += 2;
+    } else if (block.kind === 'source') {
+      // Unpaired CJK block — its own source-only paragraph.
+      paragraphs.push({
+        segments: splitSentences(block.text).map((source) => ({ source, target: '' })),
+      });
+      i += 1;
+    } else {
+      // Stray target-only block (no preceding source pair) — keep the text
+      // rather than silently dropping it.
+      paragraphs.push({
+        segments: splitSentences(block.text).map((target) => ({ source: '', target })),
+      });
+      i += 1;
+    }
+  }
+  return { mode, paragraphs };
+}
+
 export const mockApi: DictionaryApi = {
   async search(query) {
     await delay();
@@ -350,12 +503,7 @@ export const mockApi: DictionaryApi = {
 
   async getSession() {
     await delay();
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      return raw ? (JSON.parse(raw) as Session) : { user: null };
-    } catch {
-      return { user: null };
-    }
+    return readSession();
   },
 
   async signIn() {
@@ -369,5 +517,97 @@ export const mockApi: DictionaryApi = {
   async signOut() {
     await delay();
     localStorage.removeItem(SESSION_KEY);
+  },
+
+  async getRemoteDocument(uuid) {
+    await delay();
+    if (uuid === SOURCE_ONLY_DOC_ID) {
+      return { uuid, name: '供货合同（节选）', text: SOURCE_ONLY_DOC_TEXT };
+    }
+    if (uuid === MIXED_DOC_ID) {
+      return { uuid, name: '供货合同（双语）', text: MIXED_DOC_TEXT };
+    }
+    return null;
+  },
+
+  async restructureDocument(text) {
+    await delay();
+    // Exercises the real LLM-restructure prompt plumbing end to end even
+    // though this rule-based mock never sends it anywhere.
+    buildRestructurePayload(text);
+    return restructureBlocks(text);
+  },
+
+  async translateSegments(request) {
+    requireSession();
+    buildTranslatePayload(request);
+
+    const delayMs = Math.min(600 + 150 * request.segments.length, 3000);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+    const exampleByZh = new Map(
+      ENTRIES.flatMap((e) => e.senses.flatMap((s) => s.examples ?? [])).map((ex) => [ex.zh, ex]),
+    );
+
+    const translations = request.segments.map(({ id, source }) => {
+      if (!source.trim()) return { id, target: '' };
+      const example = exampleByZh.get(source);
+      const target = example ? example.en : `(draft) English rendering of "${source}"`;
+      return { id, target };
+    });
+
+    return { translations };
+  },
+
+  async explainTerm(request) {
+    requireSession();
+    buildTermExplainPayload(request);
+    await delay();
+
+    const first = request.termbaseEntries[0];
+    if (!first) {
+      return {
+        explanation: `No termbase coverage for "${request.phrase}" — this may be a name, a rare term, or a compound the segmenter split incorrectly. Read it in context and consider searching for a shorter substring.`,
+        suggestedRenderings: [romanizePhrase(request.phrase)],
+        sourceIndexes: [],
+      };
+    }
+
+    const sense = first.senses[0];
+    const tag = [sense?.register, sense?.domain].filter(Boolean).join('/') || 'general';
+    return {
+      explanation: `In this passage, ${request.phrase} is functioning in its ${tag} sense — ${
+        sense?.glosses[0] ?? ''
+      }. Read the surrounding clause before committing to a rendering.`,
+      suggestedRenderings: (sense?.glosses ?? []).slice(0, 2),
+      sourceIndexes: [1],
+    };
+  },
+
+  async listWorkspaceProjects() {
+    await delay();
+    return Object.values(readWorkspaceProjects())
+      .map(summarizeProject)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  },
+
+  async getWorkspaceProject(id) {
+    await delay();
+    const project = readWorkspaceProjects()[id];
+    return project ? normalizeProject(project) : null;
+  },
+
+  async saveWorkspaceProject(project) {
+    await delay();
+    const projects = readWorkspaceProjects();
+    projects[project.id] = normalizeProject(project);
+    writeWorkspaceProjects(projects);
+  },
+
+  async deleteWorkspaceProject(id) {
+    await delay();
+    const projects = readWorkspaceProjects();
+    delete projects[id];
+    writeWorkspaceProjects(projects);
   },
 };

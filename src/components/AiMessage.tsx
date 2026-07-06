@@ -3,43 +3,9 @@ import { Link } from 'react-router-dom';
 import type { AiAssistantMessage } from '../api';
 import AudioButton from './AudioButton';
 import Badge from './Badge';
+import CitationMarkers from './CitationMarkers';
 import CopyText from './CopyText';
 import AiTermChip from './AiTermChip';
-
-const SUPERSCRIPT_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
-
-function toSuperscript(n: number): string {
-  return String(n)
-    .split('')
-    .map((d) => SUPERSCRIPT_DIGITS[Number(d)])
-    .join('');
-}
-
-/** Superscript citation markers appended to a block. Never interrupts reading flow. */
-function CitationMarkers({
-  indexes,
-  onCite,
-}: {
-  indexes: number[];
-  onCite: (index: number) => void;
-}) {
-  if (indexes.length === 0) return null;
-  return (
-    <span className="ai-citations">
-      {indexes.map((n) => (
-        <button
-          key={n}
-          type="button"
-          className="ai-citation-marker"
-          aria-label={`Show source ${n}`}
-          onClick={() => onCite(n)}
-        >
-          {toSuperscript(n)}
-        </button>
-      ))}
-    </span>
-  );
-}
 
 /**
  * An assistant reply: the block sequence, then a footer with a collapsed

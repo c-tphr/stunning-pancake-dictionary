@@ -32,6 +32,7 @@ export default function TopNav() {
             { to: '/', label: 'Search', end: true },
             { to: '/characters', label: 'Characters' },
             { to: '/ai', label: 'AI' },
+            { to: '/workspace', label: 'Workspace' },
             { to: '/glossary', label: 'Glossary' },
             { to: '/settings', label: 'Settings' },
           ].map(({ to, label, end }) => (

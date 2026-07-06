@@ -7,8 +7,16 @@ import type {
   DictionaryEntry,
   HandwritingSample,
   PronunciationClip,
+  RemoteDocument,
+  RestructuredDocument,
   SearchResult,
   Session,
+  TermExplainRequest,
+  TermExplanation,
+  TranslateSegmentsRequest,
+  TranslateSegmentsResponse,
+  WorkspaceProject,
+  WorkspaceProjectSummary,
 } from './types';
 
 /**
@@ -46,4 +54,20 @@ export interface DictionaryApi {
    * so the frontend never handles a key and this is just another promise.
    */
   chat(request: AiChatRequest): Promise<AiChatResponse>;
+
+  /* ---- Workspace ---- */
+
+  /** Fetch a raw document from the backend by UUID. Null when unknown. */
+  getRemoteDocument(uuid: string): Promise<RemoteDocument | null>;
+  /** Raw text → aligned paragraphs/segments; detects source-only vs mixed. */
+  restructureDocument(text: string): Promise<RestructuredDocument>;
+  /** MT drafts for a segment batch. Requires an authenticated session. */
+  translateSegments(request: TranslateSegmentsRequest): Promise<TranslateSegmentsResponse>;
+  /** Grounded, context-aware explanation for the reference panel. Requires a session. */
+  explainTerm(request: TermExplainRequest): Promise<TermExplanation>;
+
+  listWorkspaceProjects(): Promise<WorkspaceProjectSummary[]>;
+  getWorkspaceProject(id: string): Promise<WorkspaceProject | null>;
+  saveWorkspaceProject(project: WorkspaceProject): Promise<void>;
+  deleteWorkspaceProject(id: string): Promise<void>;
 }

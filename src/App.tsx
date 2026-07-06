@@ -11,6 +11,7 @@ import EntryPage from './pages/EntryPage';
 import CharactersPage from './pages/CharactersPage';
 import CharacterDetailPage from './pages/CharacterDetailPage';
 import AiPage from './pages/AiPage';
+import WorkspacePage from './pages/WorkspacePage';
 import GlossaryPage from './pages/GlossaryPage';
 import SettingsPage from './pages/SettingsPage';
 
@@ -31,6 +32,7 @@ export default function App() {
                     <Route path="/characters" element={<CharactersPage />} />
                     <Route path="/characters/:char" element={<CharacterDetailPage />} />
                     <Route path="/ai" element={<AiPage />} />
+                    <Route path="/workspace" element={<WorkspacePage />} />
                     <Route path="/glossary" element={<GlossaryPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>

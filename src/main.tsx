@@ -13,6 +13,7 @@ import './theme/tokens.css';
 import './theme/global.css';
 import './theme/components.css';
 import './theme/pages.css';
+import './theme/workspace.css';
 
 import App from './App';
 

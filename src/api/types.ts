@@ -175,6 +175,101 @@ export interface AiChatResponse {
   message: AiAssistantMessage;
 }
 
+/* ---- Workspace (CAT-style editor) ----
+ *
+ * Source/target text lives as structured data — ordered paragraphs of aligned
+ * segments — so the editor can project it into any view (target-only,
+ * sentence-by-sentence, paragraph-by-paragraph) without conversion loss.
+ */
+
+export type SegmentStatus =
+  | 'untranslated' // no target yet
+  | 'translating' // MT request in flight — transient, never persisted
+  | 'draft' // has a target (MT or imported), not yet reviewed
+  | 'good' // reviewed and approved
+  | 'needs-revision'; // reviewed and flagged
+
+export interface WorkspaceSegment {
+  id: string;
+  /** Chinese source — immutable in the editor except via merge/split. */
+  source: string;
+  /** English target; '' when untranslated. */
+  target: string;
+  status: SegmentStatus;
+}
+
+export interface WorkspaceParagraph {
+  id: string;
+  segments: WorkspaceSegment[];
+}
+
+export interface WorkspaceProject {
+  id: string;
+  name: string;
+  createdAt: string; // ISO 8601
+  updatedAt: string;
+  paragraphs: WorkspaceParagraph[];
+}
+
+export interface WorkspaceProjectSummary {
+  id: string;
+  name: string;
+  updatedAt: string;
+  /** Segment counts by status, for resume-screen progress display. */
+  counts: Record<SegmentStatus, number>;
+}
+
+/** A document fetched from the backend by UUID; raw text, not yet structured. */
+export interface RemoteDocument {
+  uuid: string;
+  name: string;
+  text: string;
+}
+
+export interface RestructuredSegmentDraft {
+  source: string;
+  /** Aligned translation when the input was mixed; '' otherwise. */
+  target: string;
+}
+
+/** Output of restructuring raw pasted/fetched text into workspace segments. */
+export interface RestructuredDocument {
+  mode: 'source-only' | 'mixed';
+  paragraphs: { segments: RestructuredSegmentDraft[] }[];
+}
+
+export interface TranslateSegmentsRequest {
+  /** Segments to translate this call; ids echo back in the response. */
+  segments: { id: string; source: string }[];
+  /** Neighboring source/target text for style and cohesion; '' when none. */
+  contextBefore: string;
+  contextAfter: string;
+  /** User's glossary — established renderings the MT must stay consistent with. */
+  glossary: DictionaryEntry[];
+}
+
+export interface TranslateSegmentsResponse {
+  translations: { id: string; target: string }[];
+}
+
+export interface TermExplainRequest {
+  /** The word/phrase the user selected in the source text. */
+  phrase: string;
+  /** Surrounding source context (the segment or paragraph it appears in). */
+  context: string;
+  /** Termbase results shown above the explanation; the numbered grounding list. */
+  termbaseEntries: DictionaryEntry[];
+}
+
+/** Short grounded-and-contextual explanation for the reference panel. */
+export interface TermExplanation {
+  explanation: string;
+  /** 1–3 context-appropriate English renderings, best first. */
+  suggestedRenderings: string[];
+  /** 1-based indexes into termbaseEntries; empty = model knowledge. */
+  sourceIndexes: number[];
+}
+
 export type SearchMode = 'hanzi' | 'pinyin' | 'english';
 
 export interface SearchResult {

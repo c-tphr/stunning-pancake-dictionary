@@ -77,3 +77,19 @@ Other scripts: `npm run build` (typecheck + production bundle to `dist/`), `npm 
   (`src/ai/prompts.ts`, `src/ai/schema.ts`) are written to be sent as-is once the real adapter
   lands; the mock (`src/api/mock.ts`) calls the same prompt builder on every turn so that path
   stays exercised, then returns deterministic canned blocks instead of calling a model.
+- **Workspace** (`/workspace`): a CAT-style editor — paste text or fetch a document by UUID,
+  post-edit machine-translation drafts, and switch freely between Target/Sentences/Paragraphs
+  views of the same structured paragraph→segment data (`WorkspaceProject` in `src/api/types.ts`).
+  The editing surface is [Tiptap](https://tiptap.dev), mounted on demand only for the segment
+  being edited (never a monolithic document), which is what keeps merge/split pure data
+  operations. Source text is click-to-look-up at the word level via `Intl.Segmenter` (falling
+  back to a dictionary longest-match) in `src/lib/segmentation.ts`. Two LLM-backed capabilities
+  ride the same grounded-citation pattern as the AI tab: `translateSegments` (glossary-consistent
+  MT drafts) and `explainTerm` (a contextual, citation-bearing explanation of a selected phrase,
+  synthesizing the termbase results already shown above it with the surrounding source sentence)
+  — both prompts live in `src/ai/translatePrompt.ts` and `src/ai/termExplainPrompt.ts` and are
+  exercised by the mock on every call. Two demo document UUIDs are listed in the launcher
+  (`src/api/workspaceData.ts`) — one source-only, one bilingual — built from real dictionary
+  example sentences so the mock's translations are genuine, not filler. A full keyboard-driven
+  MTPE review loop (`j`/`k` navigate, `g`/`r` mark, `e` edit, `?` for the full shortcut list) is
+  built for fast post-editing without leaving the keyboard.
