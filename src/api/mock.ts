@@ -22,7 +22,15 @@ import {
   SOURCE_ONLY_DOC_ID,
   SOURCE_ONLY_DOC_TEXT,
 } from './workspaceData';
-import { hasCJK, looksLatin, normalizePinyin, toToneMarks, toToneNumbers } from '../lib/pinyin';
+import {
+  hasCJK,
+  looksLatin,
+  normalizePinyin,
+  sentenceToMarks,
+  sentenceToNumbers,
+  toToneMarks,
+  toToneNumbers,
+} from '../lib/pinyin';
 import { classifyBlock, splitSentences } from '../lib/segmentation';
 import { buildAiApiPayload } from '../ai/prompts';
 import { assembleAssistantMessage } from '../ai/validate';
@@ -192,6 +200,14 @@ function pinyinFor(numbered: string, style: AiChatRequest['preferences']['pinyin
   return style === 'marks' ? toToneMarks(numbered) : toToneNumbers(numbered);
 }
 
+/** Same, for whole example sentences — syllables stay spaced so lines can wrap. */
+function sentencePinyinFor(
+  numbered: string,
+  style: AiChatRequest['preferences']['pinyinStyle'],
+): string {
+  return style === 'marks' ? sentenceToMarks(numbered) : sentenceToNumbers(numbered);
+}
+
 function buildCannedBlocks(request: AiChatRequest): AiBlock[] {
   const primary = request.grounding.sources[0];
 
@@ -205,7 +221,7 @@ function buildCannedBlocks(request: AiChatRequest): AiBlock[] {
       {
         kind: 'example',
         zh: '这句话应该怎么翻译比较合适？',
-        pinyin: pinyinFor(
+        pinyin: sentencePinyinFor(
           'zhe4 ju4 hua4 ying1 gai1 zen3 me5 fan1 yi4 bi3 jiao4 he2 shi4',
           request.preferences.pinyinStyle,
         ),
@@ -251,7 +267,7 @@ function buildCannedBlocks(request: AiChatRequest): AiBlock[] {
     blocks.push({
       kind: 'example',
       zh: `我们需要再确认一下${entry.simplified}的用法。`,
-      pinyin: pinyinFor(
+      pinyin: sentencePinyinFor(
         `wo3 men5 xu1 yao4 zai4 que4 ren4 yi2 xia4 ${entry.pinyin} de5 yong4 fa3`,
         request.preferences.pinyinStyle,
       ),

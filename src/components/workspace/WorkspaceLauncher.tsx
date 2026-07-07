@@ -30,6 +30,11 @@ function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function goodPercent(counts: WorkspaceProjectSummary['counts']): number {
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  return total > 0 ? (counts.good / total) * 100 : 0;
+}
+
 function progressCaption(counts: WorkspaceProjectSummary['counts']): string {
   const parts: string[] = [];
   if (counts.good) parts.push(`${counts.good} good`);
@@ -173,6 +178,12 @@ export default function WorkspaceLauncher({ onOpenProject }: WorkspaceLauncherPr
                   <p className="caption workspace-project-updated">
                     Updated {formatRelativeTime(p.updatedAt)}
                   </p>
+                  <span className="workspace-progress-meter" aria-hidden="true">
+                    <span
+                      className="workspace-progress-fill"
+                      style={{ width: `${goodPercent(p.counts)}%` }}
+                    />
+                  </span>
                   <p className="body-sm workspace-project-progress">{progressCaption(p.counts)}</p>
                 </button>
                 <button
@@ -223,6 +234,8 @@ export default function WorkspaceLauncher({ onOpenProject }: WorkspaceLauncherPr
             <code>{MIXED_DOC_ID}</code> (bilingual)
           </p>
         </div>
+
+        <div className="caption-uppercase workspace-or-divider">or</div>
 
         <div className="workspace-new-card">
           <h2 className="title-sm">Paste text</h2>

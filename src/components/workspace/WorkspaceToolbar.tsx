@@ -53,7 +53,7 @@ export default function WorkspaceToolbar({
   return (
     <div className="workspace-toolbar">
       <button type="button" className="btn btn-text workspace-toolbar-back" onClick={onClose}>
-        ◀ Projects
+        ← Projects
       </button>
 
       {renaming ? (
@@ -96,6 +96,8 @@ export default function WorkspaceToolbar({
         ]}
       />
 
+      <span className="workspace-toolbar-sep" aria-hidden="true" />
+
       <div className="workspace-toolbar-translate">
         <Button variant="primary" onClick={onTranslateSelection} disabled={!canTranslate}>
           Translate
@@ -105,8 +107,19 @@ export default function WorkspaceToolbar({
         </Button>
       </div>
 
-      <span className="caption workspace-toolbar-progress">
-        {goodCount} / {totalCount} good
+      <span
+        className="workspace-toolbar-progress-wrap"
+        title={`${goodCount} of ${totalCount} segments marked good`}
+      >
+        <span className="workspace-progress-meter" aria-hidden="true">
+          <span
+            className="workspace-progress-fill"
+            style={{ width: `${totalCount > 0 ? (goodCount / totalCount) * 100 : 0}%` }}
+          />
+        </span>
+        <span className="caption workspace-toolbar-progress">
+          {goodCount} / {totalCount} good
+        </span>
       </span>
 
       <div className="workspace-toolbar-panels">
@@ -118,7 +131,7 @@ export default function WorkspaceToolbar({
           aria-label="Toggle source document panel"
           title="Toggle source document panel ([)"
         >
-          ⌸ Source
+          Source
         </button>
         <button
           type="button"
@@ -128,7 +141,7 @@ export default function WorkspaceToolbar({
           aria-label="Toggle reference panel"
           title="Toggle reference panel (])"
         >
-          ⌸ Reference
+          Reference
         </button>
       </div>
 
@@ -138,10 +151,12 @@ export default function WorkspaceToolbar({
 
       <button
         type="button"
-        className="caption workspace-shortcuts-hint"
+        className="workspace-shortcuts-hint"
         onClick={onShowShortcuts}
+        title="Keyboard shortcuts (?)"
+        aria-label="Keyboard shortcuts"
       >
-        Press ? for shortcuts
+        ?
       </button>
     </div>
   );

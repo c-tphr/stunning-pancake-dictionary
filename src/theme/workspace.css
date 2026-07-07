@@ -1,6 +1,6 @@
 /* Workspace (CAT-style editor). Full-width, not container-boxed — a
    workspace uses the screen. All values reference tokens.css; status colors
-   use only the existing semantic tokens, as 3px borders and small glyphs. */
+   use only the existing semantic tokens, as small bars and glyphs. */
 
 /* ---- Launcher ---- */
 
@@ -17,11 +17,12 @@
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-xl);
   padding: var(--space-lg);
-  transition: box-shadow 120ms ease;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
 }
 
 .workspace-project-card:hover {
   box-shadow: var(--shadow-soft);
+  border-color: var(--color-hairline-strong);
 }
 
 .workspace-project-card-main {
@@ -31,6 +32,12 @@
 .workspace-project-updated {
   color: var(--color-muted);
   margin-top: var(--space-xxs);
+}
+
+.workspace-project-card .workspace-progress-meter {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-base);
 }
 
 .workspace-project-progress {
@@ -53,11 +60,26 @@
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-xl);
   padding: var(--space-lg);
-  margin-bottom: var(--space-lg);
 }
 
 .workspace-new-card .title-sm {
   margin-bottom: var(--space-base);
+}
+
+.workspace-or-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-base);
+  margin: var(--space-md) 0;
+  color: var(--color-muted-soft);
+}
+
+.workspace-or-divider::before,
+.workspace-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-hairline);
 }
 
 .workspace-fetch-row {
@@ -138,25 +160,34 @@
 
 /* ---- Editor shell ---- */
 
+/* The editor shell owns the viewport below the nav: the toolbar takes its
+   natural height (it may wrap at narrow widths) and the body flexes to fill
+   whatever remains — no hardcoded toolbar-height math anywhere. */
 .workspace-page {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - var(--nav-height));
 }
 
 .workspace-toolbar {
-  position: sticky;
-  top: var(--nav-height);
   z-index: 15;
   display: flex;
   align-items: center;
-  gap: var(--space-base);
-  padding: var(--space-sm) var(--space-lg);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-base);
   background: var(--color-canvas);
   border-bottom: 1px solid var(--color-hairline);
   flex-wrap: wrap;
 }
 
 .workspace-toolbar-back {
+  flex-shrink: 0;
+}
+
+.workspace-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--color-hairline);
   flex-shrink: 0;
 }
 
@@ -190,6 +221,29 @@
   height: 36px;
 }
 
+.workspace-toolbar-progress-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.workspace-progress-meter {
+  display: inline-block;
+  width: 56px;
+  height: 4px;
+  border-radius: var(--rounded-pill);
+  background: var(--color-surface-strong);
+  overflow: hidden;
+}
+
+.workspace-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--rounded-pill);
+  background: var(--color-success);
+  transition: width 200ms ease;
+}
+
 .workspace-toolbar-progress {
   color: var(--color-muted);
   white-space: nowrap;
@@ -208,6 +262,7 @@
   padding: var(--space-xxs) var(--space-sm);
   border-radius: var(--rounded-pill);
   border: 1px solid var(--color-hairline-strong);
+  transition: color 120ms ease, background 120ms ease;
 }
 
 .workspace-panel-toggle:hover {
@@ -226,24 +281,37 @@
 }
 
 .workspace-shortcuts-hint {
-  color: var(--color-muted-soft);
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 120ms ease, border-color 120ms ease;
 }
 
 .workspace-shortcuts-hint:hover {
-  color: var(--color-muted);
+  color: var(--color-ink);
+  border-color: var(--color-muted-soft);
 }
 
 .workspace-body {
   display: flex;
-  min-height: calc(100vh - var(--nav-height) - 57px);
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 .workspace-left-panel,
 .workspace-right-panel {
   flex-shrink: 0;
   background: var(--color-canvas-soft);
-  max-height: calc(100vh - var(--nav-height) - 57px);
+  height: 100%;
   overflow-y: auto;
   padding: var(--space-lg);
 }
@@ -261,7 +329,7 @@
 .workspace-center-column {
   flex: 1;
   min-width: 0;
-  max-height: calc(100vh - var(--nav-height) - 57px);
+  height: 100%;
   overflow-y: auto;
   padding: var(--space-xl);
 }
@@ -271,12 +339,23 @@
   margin: 0 auto;
 }
 
+/* The document sits on a white sheet — the page being translated reads as a
+   page, distinct from the canvas-toned tooling that surrounds it. */
+.workspace-sheet {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--rounded-xl);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-xl);
+}
+
 @media (max-width: 1024px) {
   .workspace-left-panel,
   .workspace-right-panel {
     position: absolute;
-    top: calc(var(--nav-height) + 57px);
+    top: 0;
     bottom: 0;
+    height: auto;
     z-index: 10;
     box-shadow: var(--shadow-soft);
   }
@@ -287,6 +366,14 @@
 
   .workspace-right-panel {
     right: 0;
+  }
+}
+
+@media (max-width: 1180px) {
+  /* The toolbar reads better on one line than complete: the meter is the
+     first thing to go on narrower windows (the caption stays). */
+  .workspace-toolbar .workspace-progress-meter {
+    display: none;
   }
 }
 
@@ -352,27 +439,73 @@
   color: var(--color-muted);
 }
 
-.workspace-status-border-untranslated {
-  border-left: 3px dashed var(--color-hairline-strong);
+/* Sentences view: status renders as a short inset bar (::before), not a
+   full-height border — inset top/bottom keeps adjacent rows' bars visually
+   distinct instead of merging into one bar that changes color mid-way. */
+.workspace-sentence-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--space-xs);
+  bottom: var(--space-xs);
+  width: 3px;
+  border-radius: var(--rounded-pill);
 }
 
-.workspace-status-border-translating,
-.workspace-status-border-draft {
-  border-left: 3px solid var(--color-hairline-strong);
+.workspace-sentence-row.workspace-status-border-untranslated::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-hairline-strong) 0 5px,
+    transparent 5px 9px
+  );
 }
 
-.workspace-status-border-good {
-  border-left: 3px solid var(--color-success);
+.workspace-sentence-row.workspace-status-border-translating::before,
+.workspace-sentence-row.workspace-status-border-draft::before {
+  background: var(--color-hairline-strong);
 }
 
-.workspace-status-border-needs-revision {
-  border-left: 3px solid var(--color-error);
+.workspace-sentence-row.workspace-status-border-good::before {
+  background: var(--color-success);
+}
+
+.workspace-sentence-row.workspace-status-border-needs-revision::before {
+  background: var(--color-error);
+}
+
+/* Paragraphs view: inline segments carry status as a quiet underline. */
+.workspace-segment-span {
+  border-bottom: 2px solid transparent;
+}
+
+.workspace-segment-span.workspace-status-border-untranslated {
+  border-bottom-style: dashed;
+  border-bottom-color: var(--color-hairline-strong);
+}
+
+.workspace-segment-span.workspace-status-border-translating,
+.workspace-segment-span.workspace-status-border-draft {
+  border-bottom-color: var(--color-hairline-strong);
+}
+
+.workspace-segment-span.workspace-status-border-good {
+  border-bottom-color: var(--color-success);
+}
+
+.workspace-segment-span.workspace-status-border-needs-revision {
+  border-bottom-color: var(--color-error);
 }
 
 /* ---- Sentences view ---- */
 
 .workspace-paragraph-group {
   margin-bottom: var(--space-lg);
+}
+
+.workspace-sentences .workspace-paragraph-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 .workspace-sentence-row {
@@ -383,12 +516,14 @@
   border-radius: var(--rounded-md);
   cursor: pointer;
   position: relative;
+  transition: background 120ms ease;
 }
 
-.workspace-sentence-row.is-active {
-  background: var(--color-surface-strong);
+.workspace-sentence-row:hover {
+  background: var(--color-canvas-soft);
 }
 
+.workspace-sentence-row.is-active,
 .workspace-sentence-row.is-selected {
   background: var(--color-surface-strong);
 }
@@ -403,33 +538,75 @@
 .workspace-sentence-target {
   flex: 1;
   min-width: 0;
+  border-left: 1px solid var(--color-hairline);
+  padding-left: var(--space-sm);
 }
 
 .workspace-sentence-row.is-active .workspace-sentence-target {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
   border-radius: var(--rounded-xs);
+  border-left-color: transparent;
 }
 
-.workspace-merge-hint {
-  position: absolute;
-  left: 50%;
-  bottom: -10px;
-  transform: translateX(-50%);
-  color: var(--color-muted-soft);
-  background: var(--color-canvas);
-  padding: 0 var(--space-xs);
-  opacity: 0;
-  transition: opacity 100ms ease;
-  z-index: 1;
+/* While the Tiptap editor is mounted it draws its own 2px ink border —
+   drop the active-target outline so the row doesn't show two nested boxes. */
+.workspace-sentence-row.is-active .workspace-sentence-target:has(.workspace-segment-editor) {
+  outline: none;
 }
 
-.workspace-sentence-row:hover .workspace-merge-hint {
-  opacity: 1;
+/* Per-row control rail: status glyph, then speak/merge as quiet circular
+   buttons that reveal on hover or while the row is active. Space is always
+   reserved so rows don't shift. */
+.workspace-row-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  flex-shrink: 0;
 }
 
-.workspace-merge-hint:hover {
+.workspace-merge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--rounded-full);
+  background: var(--color-surface-strong);
   color: var(--color-ink);
+  transition: background 120ms ease;
+}
+
+.workspace-merge-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.workspace-merge-btn:hover {
+  background: var(--color-hairline-strong);
+}
+
+.workspace-merge-btn:disabled {
+  opacity: 0.4;
+}
+
+.workspace-merge-btn-spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.workspace-row-controls .audio-button,
+.workspace-row-controls .workspace-merge-btn {
+  opacity: 0;
+  transition: opacity 100ms ease, background 120ms ease;
+}
+
+.workspace-sentence-row:hover .workspace-row-controls .audio-button,
+.workspace-sentence-row:hover .workspace-row-controls .workspace-merge-btn,
+.workspace-sentence-row.is-active .workspace-row-controls .audio-button,
+.workspace-sentence-row.is-active .workspace-row-controls .workspace-merge-btn {
+  opacity: 1;
 }
 
 /* ---- Target text (shared by sentences/paragraphs/target views) ---- */
@@ -473,6 +650,7 @@
 .workspace-paragraph-source-block {
   color: var(--color-ink);
   margin-bottom: var(--space-sm);
+  line-height: 1.9;
 }
 
 .workspace-segment-span {
@@ -521,13 +699,21 @@
   display: inline;
 }
 
+/* Words are focusable spans, not buttons — buttons suppress the native
+   click-drag text selection that the "Look up" chip depends on. */
 .workspace-word {
   color: inherit;
   border-radius: var(--rounded-xs);
+  cursor: pointer;
 }
 
 .workspace-word:hover {
   background: var(--color-hairline-soft);
+}
+
+.workspace-word:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
 }
 
 .workspace-split-caret {
@@ -543,7 +729,11 @@
   position: fixed;
   z-index: 30;
   transform: translate(-50%, -100%);
+  background: var(--color-inverse-surface);
+  color: var(--color-on-inverse);
+  border: none;
   box-shadow: var(--shadow-soft);
+  cursor: pointer;
 }
 
 /* ---- Reference panel ---- */
@@ -569,6 +759,7 @@
 }
 
 .workspace-lookup-result {
+  background: var(--color-surface-card);
   border: 1px solid var(--color-hairline);
   border-radius: var(--rounded-md);
   transition: background 200ms ease;
@@ -676,6 +867,30 @@
 
 .workspace-assistant-tab .ai-message {
   padding: var(--space-base);
+}
+
+.workspace-assistant-tab .example {
+  padding: var(--space-sm);
+}
+
+/* The composer is shared with the full-page AI tab, where 16px type suits
+   the wide layout — in the narrow sidebar it reads oversized, so step it
+   down to the panel's body-sm scale. */
+.workspace-assistant-tab .ai-composer-input {
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: 0.1px;
+  min-height: 38px;
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.workspace-assistant-tab .ai-composer-input:focus {
+  padding: 7px 11px;
+}
+
+.workspace-assistant-tab .ai-composer .btn {
+  height: 38px;
+  padding: 0 var(--space-base);
 }
 
 /* ---- Shortcuts overlay ---- */

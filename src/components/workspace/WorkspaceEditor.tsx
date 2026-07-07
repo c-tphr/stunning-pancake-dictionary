@@ -68,6 +68,10 @@ export default function WorkspaceEditor({ initialProject, onClose }: WorkspaceEd
     // don't let re-activating the SAME segment wipe out the split offset that
     // click just set. Only clear it when actually switching segments.
     setSplitOffset((prev) => (id === activeId ? prev : null));
+    // Switching segments never leaves an editor open on another segment.
+    // Its blur handler commits the text first on any click-driven switch;
+    // this guards the remaining non-click paths.
+    setEditingSegmentId((cur) => (cur && cur !== id ? null : cur));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
@@ -400,22 +404,24 @@ export default function WorkspaceEditor({ initialProject, onClose }: WorkspaceEd
           </div>
         )}
         <div className="workspace-center-column">
-          <SegmentList
-            project={project}
-            view={view}
-            activeId={activeId}
-            selectedIds={selectedIds}
-            editingSegmentId={editingSegmentId}
-            splitOffset={splitOffset}
-            onActivate={(id) => setActiveId(id, false)}
-            onEditRequest={(id) => setEditingSegmentId(id)}
-            onEditConfirm={handleEditConfirm}
-            onEditCancel={handleEditCancel}
-            onWordClick={handleWordClick}
-            onSelectionLookup={handleSelectionLookup}
-            onMerge={handleMerge}
-            registerRef={registerRef}
-          />
+          <div className="workspace-sheet">
+            <SegmentList
+              project={project}
+              view={view}
+              activeId={activeId}
+              selectedIds={selectedIds}
+              editingSegmentId={editingSegmentId}
+              splitOffset={splitOffset}
+              onActivate={(id) => setActiveId(id, false)}
+              onEditRequest={(id) => setEditingSegmentId(id)}
+              onEditConfirm={handleEditConfirm}
+              onEditCancel={handleEditCancel}
+              onWordClick={handleWordClick}
+              onSelectionLookup={handleSelectionLookup}
+              onMerge={handleMerge}
+              registerRef={registerRef}
+            />
+          </div>
         </div>
         {rightPanelOpen && (
           <div className="workspace-right-panel">

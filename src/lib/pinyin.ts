@@ -48,6 +48,22 @@ export function toToneNumbers(numbered: string): string {
   return numbered.trim().split(/\s+/).join('');
 }
 
+/*
+ * Sentence-level display forms. Joining is correct WITHIN a word (yínháng),
+ * but a whole sentence squashed into one token is wrong orthographically and
+ * can't wrap in narrow layouts — sentences keep their syllables spaced.
+ */
+
+/** "zhe4 ju4 hua4" → "zhè jù huà". */
+export function sentenceToMarks(numbered: string): string {
+  return numbered.trim().split(/\s+/).map(syllableToMarks).join(' ');
+}
+
+/** "zhe4  ju4 hua4" → "zhe4 ju4 hua4". */
+export function sentenceToNumbers(numbered: string): string {
+  return numbered.trim().replace(/\s+/g, ' ');
+}
+
 /**
  * Collapse any pinyin writing (tone marks, tone numbers, toneless, spaced or not,
  * ü/u:/v) to a bare lowercase key, e.g. "yín háng" / "yin2hang2" / "yinhang" → "yinhang".

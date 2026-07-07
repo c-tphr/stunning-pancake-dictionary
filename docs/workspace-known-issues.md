@@ -2,9 +2,12 @@
 
 **Status:** Implemented per [workspace-prd.md](./workspace-prd.md), typechecked, built, and smoke-tested
 against most of the PRD's acceptance criteria. Two real bugs were found after that pass (reported by
-the user testing manually) and are documented below with verified root causes. **No code changes have
-been made for the issues in this document** — this is a diagnostic write-up only, so the fixes can be
-reviewed/prioritized before anyone touches the code.
+the user testing manually) and are documented below with verified root causes.
+
+> **Update (2026-07):** Both bugs below are **fixed**, along with rough-edge item 1 (chip positioning
+> math), as part of a look-and-feel pass over the whole Workspace (row status bars, sheet layout,
+> toolbar cleanup, self-sizing editor shell). Each fixed section carries a "Fixed" note describing
+> what changed. The original diagnostic write-ups are kept for the record.
 
 ## What's implemented
 
@@ -30,7 +33,15 @@ are root-caused below via live reproduction in the browser (not just code review
 
 ---
 
-## Bug 1: Arbitrary text-selection lookup doesn't work
+## Bug 1: Arbitrary text-selection lookup doesn't work — FIXED
+
+> **Fixed:** words now render as focusable `<span role="button">` elements instead of `<button>`s, so
+> native drag-selection works; the chip-dismiss listener moved from `click` to `mousedown` (a fresh
+> gesture dismisses, the trailing click of the creating drag doesn't); the chip's coordinates now use
+> viewport values directly (matching its `position: fixed`), it dismisses on scroll, and a word click
+> is skipped when a non-collapsed selection exists so the drag's trailing click doesn't also trigger a
+> word lookup. Verified live: chip appears centered above the selection, survives the trailing click,
+> looks up the selected phrase on click, and dismisses on the next mousedown elsewhere.
 
 **Symptom:** Highlighting a span of source text that crosses word boundaries (the documented escape
 hatch for when word-click segmentation picks the wrong boundary, §6.8 of the PRD) does not produce
@@ -79,7 +90,12 @@ the floating "Look up" chip in real use.
 
 ---
 
-## Bug 2: Post-split segment status indicator looks "split in the middle" / spacing is off
+## Bug 2: Post-split segment status indicator looks "split in the middle" / spacing is off — FIXED
+
+> **Fixed:** sentence rows within a paragraph group now sit in a flex column with an 8px gap, and the
+> status indicator changed from a full-height `border-left` to a rounded bar (`::before`) inset from
+> the row's top and bottom — adjacent bars can never read as one continuous strip, even at a glance.
+> Verified live after a split: the two new rows are 8px apart, each with its own distinct bar.
 
 **Symptom:** After splitting a segment (or generally between any two adjacent segments in Sentences
 view), the 3px left status-border strip reads as one continuous bar that changes color/style partway
@@ -123,13 +139,11 @@ the post-split case.
 While diagnosing the above, and reviewing the implementation more broadly, the following are worth
 flagging — none of these block the feature, but they're honest gaps or simplifications:
 
-1. **Floating chip position math is inconsistent with its own CSS.** `.workspace-lookup-chip` is
+1. **Floating chip position math is inconsistent with its own CSS.** *(FIXED with Bug 1 — the chip
+   now uses viewport coordinates directly and dismisses on scroll.)* `.workspace-lookup-chip` is
    styled `position: fixed` (viewport-relative) in `workspace.css`, but the JS in `SourceText.tsx`
-   computes `top`/`left` by adding `window.scrollY` / `window.scrollX` to `getBoundingClientRect()` —
+   computed `top`/`left` by adding `window.scrollY` / `window.scrollX` to `getBoundingClientRect()` —
    that scroll-offset addition is correct for `position: absolute` (document-relative), not `fixed`.
-   If the editor's center column (which scrolls internally) is scrolled when a selection is made, the
-   chip would render offset from the actual selection by the scrolled amount. This compounds Bug 1 —
-   fixing the selection mechanics alone wouldn't be enough; this positioning math needs correcting too.
 2. **Tiptap's `autofocus: 'end'` was not confirmed with a real keystroke.** In automated testing, a
    synthetic `keydown` for `e`/`Enter` opened the editor but didn't carry real user-activation, so
    `autofocus` didn't visibly focus the field (manual click-to-focus worked fine, and typing/Enter/
@@ -161,11 +175,11 @@ flagging — none of these block the feature, but they're honest gaps or simplif
 
 ## Suggested next steps
 
-1. Fix Bug 1 (both root causes) and Bug 2, then re-verify the selection-fallback chip and the
-   Sentences-view spacing with a fresh manual pass (not just automated checks — this bug specifically
-   slipped through automated testing because synthetic events don't reproduce real button-vs-drag
-   interaction).
-2. Fix the chip's `position: fixed` vs. scroll-offset math while touching Bug 1.
+1. ~~Fix Bug 1 (both root causes) and Bug 2~~ — done (see the Fixed notes above), but a **real manual
+   mouse-drag pass on the selection chip is still worth doing**: automated verification can create
+   genuine selections and dispatch the surrounding events, but it cannot reproduce the browser's
+   native drag gesture — the very gap that let Bug 1 slip through the first QA pass.
+2. ~~Fix the chip's `position: fixed` vs. scroll-offset math~~ — done with Bug 1.
 3. Manually confirm Tiptap's autofocus with a real keypress.
 4. Consider a quick systemic grep for other `setTimeout`-based "revert after N ms" patterns to rule out
    the same race class as item 5 above.

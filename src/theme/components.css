@@ -468,6 +468,8 @@
 .example-pinyin {
   color: var(--color-muted);
   margin-top: var(--space-xxs);
+  /* Romanizations can contain long unbroken runs — wrap rather than spill. */
+  overflow-wrap: anywhere;
 }
 
 .example-en {

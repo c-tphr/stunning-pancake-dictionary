@@ -1,4 +1,5 @@
 import type { WorkspaceProject, WorkspaceSegment } from '../../api';
+import AudioButton from '../AudioButton';
 import SegmentEditor from './SegmentEditor';
 import SourceText from './SourceText';
 
@@ -28,6 +29,22 @@ const STATUS_GLYPH: Record<WorkspaceSegment['status'], string> = {
   good: '✓',
   'needs-revision': '!',
 };
+
+function MergeIcon() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+      <path
+        d="M6 1v5M3.5 4 6 6.5 8.5 4"
+        stroke="currentColor"
+        fill="none"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M2 10h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 function StatusGutter({ status }: { status: WorkspaceSegment['status'] }) {
   if (status === 'translating') {
@@ -104,7 +121,27 @@ export default function SegmentList({
                 aria-label={`Segment ${i + 1}, ${segment.status.replace('-', ' ')}`}
                 onClick={() => onActivate(segment.id)}
               >
-                <StatusGutter status={segment.status} />
+                <div className="workspace-row-controls">
+                  <StatusGutter status={segment.status} />
+                  <AudioButton text={segment.source} size="sm" />
+                  {i < paragraph.segments.length - 1 ? (
+                    <button
+                      type="button"
+                      className="workspace-merge-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMerge(segment.id);
+                      }}
+                      aria-label="Merge with next segment"
+                      title="Merge with next segment (m)"
+                      disabled={segment.status === 'translating'}
+                    >
+                      <MergeIcon />
+                    </button>
+                  ) : (
+                    <span className="workspace-merge-btn-spacer" aria-hidden="true" />
+                  )}
+                </div>
                 <div className="workspace-sentence-source">
                   <SourceText
                     text={segment.source}
@@ -115,20 +152,6 @@ export default function SegmentList({
                   />
                 </div>
                 <div className="workspace-sentence-target">{renderTarget(segment)}</div>
-                {i < paragraph.segments.length - 1 && (
-                  <button
-                    type="button"
-                    className="workspace-merge-hint caption"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMerge(segment.id);
-                    }}
-                    aria-label="Merge with next segment"
-                    disabled={segment.status === 'translating'}
-                  >
-                    ⌄ merge
-                  </button>
-                )}
               </div>
             ))}
           </div>

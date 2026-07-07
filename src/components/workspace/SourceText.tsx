@@ -20,6 +20,10 @@ interface SourceTextProps {
  * fight with word-click lookup for the same gesture. Dragging a selection
  * across words shows a floating "Look up" chip as the escape hatch when the
  * word segmenter picked the wrong boundary.
+ *
+ * Words render as focusable spans, NOT <button>s — browsers treat a drag
+ * that starts on a button as a press gesture and never begin a native text
+ * selection, which would make the drag-to-look-up escape hatch unreachable.
  */
 export default function SourceText({
   text,
@@ -35,24 +39,42 @@ export default function SourceText({
   const [chip, setChip] = useState<{ text: string; top: number; left: number } | null>(null);
 
   useEffect(() => {
-    const handleDocumentClick = (e: MouseEvent) => {
+    if (!chip) return;
+    // Dismiss on the NEXT gesture's mousedown, not on `click`: the drag that
+    // creates the chip ends with a click of its own (mouseup → click), and a
+    // click listener would treat that trailing click as "clicked outside" and
+    // clear the chip before the user could ever press it. Any genuinely new
+    // interaction starts with a fresh mousedown. Scrolling also dismisses —
+    // the chip is viewport-fixed, so scrolled content would drift out from
+    // under it.
+    const handlePointerDown = (e: MouseEvent) => {
       if (chipRef.current?.contains(e.target as Node)) return;
       setChip(null);
     };
-    document.addEventListener('click', handleDocumentClick);
-    return () => document.removeEventListener('click', handleDocumentClick);
-  }, []);
+    const handleScroll = () => setChip(null);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [chip]);
+
+  const selectionInside = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.anchorNode) return null;
+    if (!containerRef.current?.contains(selection.anchorNode)) return null;
+    return selection;
+  };
 
   const handleMouseUp = () => {
-    const selection = window.getSelection();
+    const selection = selectionInside();
     const selectedText = selection?.toString().trim() ?? '';
-    if (!selectedText || selection!.isCollapsed || !containerRef.current) {
-      return;
-    }
-    const anchorNode = selection!.anchorNode;
-    if (!anchorNode || !containerRef.current.contains(anchorNode)) return;
-    const rect = selection!.getRangeAt(0).getBoundingClientRect();
-    setChip({ text: selectedText, top: rect.top + window.scrollY - 40, left: rect.left + window.scrollX });
+    if (!selection || !selectedText) return;
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    // position: fixed — viewport coordinates straight from the rect, no
+    // scroll offsets. The chip centers itself via translate(-50%, -100%).
+    setChip({ text: selectedText, top: rect.top - 6, left: rect.left + rect.width / 2 });
   };
 
   let offset = 0;
@@ -70,14 +92,29 @@ export default function SourceText({
             {isActive && splitOffset === wordOffsets[i] && (
               <span className="workspace-split-caret" aria-hidden="true" />
             )}
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               className="workspace-word"
               aria-label={`Look up ${word}`}
-              onClick={() => onWordClick(word, wordOffsets[i])}
+              onClick={() => {
+                // A drag that ends on a word fires a click too — that gesture
+                // belongs to the selection chip, not word lookup.
+                if (selectionInside()) return;
+                onWordClick(word, wordOffsets[i]);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  // Keep Enter from also reaching the editor's document-level
+                  // shortcut layer (Enter = edit active segment).
+                  e.stopPropagation();
+                  onWordClick(word, wordOffsets[i]);
+                }
+              }}
             >
               {word}
-            </button>
+            </span>
           </span>
         ))}
       </span>
@@ -90,6 +127,7 @@ export default function SourceText({
           onClick={() => {
             onSelectionLookup(chip.text);
             setChip(null);
+            window.getSelection()?.removeAllRanges();
           }}
         >
           Look up
